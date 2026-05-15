@@ -1,11 +1,14 @@
-import { Loader2, Search as SearchIcon } from "lucide-react";
+import { lazy, Suspense } from "react";
 import PropTypes from "prop-types";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Display } from "./Display";
 import { FooterCredit } from "./FooterCredit";
+import { SearchIcon, LoaderIcon } from "./ui/icons";
 import { useGithubUserSearch } from "../hooks/useGithubUserSearch";
+
+const loadDisplay = () => import("./Display");
+const Display = lazy(() => loadDisplay().then((module) => ({ default: module.Display })));
 
 export const Search = ({ onStatusChange }) => {
   const {
@@ -35,6 +38,7 @@ export const Search = ({ onStatusChange }) => {
           autoComplete="off"
           onSubmit={handleSubmit}
           onClick={handleSearchBarClick}
+          onFocus={loadDisplay}
           className="relative rounded-base border-2 border-border bg-secondary-background shadow-shadow"
         >
           <div className="flex items-center gap-2 px-3 py-2">
@@ -59,7 +63,7 @@ export const Search = ({ onStatusChange }) => {
               <span className="sr-only" aria-live="polite">
                 {loading ? "Searching user..." : error}
               </span>
-              {loading && <Loader2 className="size-4 animate-spin text-foreground/60" />}
+              {loading && <LoaderIcon className="size-4 animate-spin text-foreground/60" />}
               <Button
                 type="submit"
                 disabled={loading}
@@ -100,6 +104,7 @@ export const Search = ({ onStatusChange }) => {
                     src={suggestion.avatar_url}
                     alt=""
                     aria-hidden="true"
+                    loading="lazy"
                     className="size-8 rounded-base border-2 border-border"
                   />
                   <span>{suggestion.login}</span>
@@ -108,7 +113,17 @@ export const Search = ({ onStatusChange }) => {
             </div>
           )}
         </form>
-        {data && <Display data={data} />}
+        {data && (
+          <Suspense
+            fallback={
+              <div className="mt-4 flex justify-center py-8">
+                <LoaderIcon className="size-6 animate-spin text-foreground/60" />
+              </div>
+            }
+          >
+            <Display data={data} />
+          </Suspense>
+        )}
         <FooterCredit />
       </div>
     </main>

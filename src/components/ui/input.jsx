@@ -1,10 +1,12 @@
+import { forwardRef } from "react";
 import PropTypes from "prop-types";
 
 import { cn } from "@/lib/utils";
 
-function Input({ className, type, ...props }) {
+const Input = forwardRef(function Input({ className, type, ...props }, ref) {
   return (
     <input
+      ref={ref}
       type={type}
       data-slot="input"
       className={cn(
@@ -14,7 +16,7 @@ function Input({ className, type, ...props }) {
       {...props}
     />
   );
-}
+});
 
 Input.propTypes = {
   className: PropTypes.string,

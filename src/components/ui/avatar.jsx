@@ -28,21 +28,6 @@ function AvatarImage({ className, ...props }) {
 
 AvatarImage.displayName = "AvatarImage";
 
-function AvatarFallback({ className, ...props }) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "flex h-full w-full items-center justify-center rounded-base bg-main text-main-foreground font-base",
-        className
-      )}
-      {...props}
-    />
-  );
-}
-
-AvatarFallback.displayName = "AvatarFallback";
-
 Avatar.propTypes = {
   className: PropTypes.string,
 };
@@ -51,8 +36,4 @@ AvatarImage.propTypes = {
   className: PropTypes.string,
 };
 
-AvatarFallback.propTypes = {
-  className: PropTypes.string,
-};
-
-export { Avatar, AvatarImage, AvatarFallback };
+export { Avatar, AvatarImage };

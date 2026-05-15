@@ -1,9 +1,9 @@
-import { Building2, Globe, MapPin } from "lucide-react";
 import PropTypes from "prop-types";
-import dayjs from "dayjs";
 
 import { Avatar, AvatarImage } from "./ui/avatar";
+import { MapPinIcon, BuildingIcon, GlobeIcon } from "./ui/icons";
 import { githubRepoShape, githubUserShape, nullableStringProp } from "../utils/githubUser";
+import { formatDate } from "../lib/formatDate";
 
 const EMPTY_BIO_TEXT = "This Profile has no bio.";
 
@@ -41,8 +41,7 @@ const InfoRow = ({ text, type, icon: Icon }) => {
 
   return (
     <p
-      className="flex items-center gap-3 text-sm font-base"
-      style={{ opacity: available ? 1 : 0.5 }}
+      className={`flex items-center gap-3 text-sm font-base ${available ? "opacity-100" : "opacity-50"}`}
     >
       {Icon && <Icon className="size-5 shrink-0" />}
       {content}
@@ -53,10 +52,10 @@ const InfoRow = ({ text, type, icon: Icon }) => {
 const UserInformation = ({ location, blog, company }) => (
   <div className="mt-4 grid gap-4">
     <div className="grid gap-4 sm:grid-cols-2">
-      <InfoRow text={location} type="text" icon={MapPin} />
-      <InfoRow text={company} type="text" icon={Building2} />
+      <InfoRow text={location} type="text" icon={MapPinIcon} />
+      <InfoRow text={company} type="text" icon={BuildingIcon} />
     </div>
-    <InfoRow text={blog} type="link" icon={Globe} />
+    <InfoRow text={blog} type="link" icon={GlobeIcon} />
   </div>
 );
 
@@ -81,7 +80,7 @@ const RecentRepos = ({ repos }) => {
           >
             <p className="text-sm font-heading text-main-foreground truncate">{repo.name}</p>
             <p className="mt-1 text-xs font-base text-main-foreground/70">
-              {dayjs(repo.pushed_at).format("DD MMM YYYY")}
+              {formatDate(repo.pushed_at, "DD MMM YYYY")}
             </p>
           </a>
         ))}
@@ -105,7 +104,7 @@ export const Display = ({ data }) => {
               {data.name || data.login}
             </h2>
             <p className="text-xs font-base text-foreground/50">
-              Joined {dayjs(data.created_at).format("MMMM YYYY")}
+              Joined {formatDate(data.created_at, "MMMM YYYY")}
             </p>
           </div>
           <a

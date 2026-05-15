@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createHeaderStatus } from "../utils/headerStatus";
 import { pickDisplayUserFields } from "../utils/githubUser";
+import { githubFetchJson, getErrorMessage, ERROR_MESSAGES } from "../lib/githubApi";
 
 const DEFAULT_USER = "farzanuddin";
 const CACHE_MAX_ENTRIES = 30;
@@ -10,79 +11,15 @@ const AUTOCOMPLETE_MIN_CHARS = 2;
 const AUTOCOMPLETE_DELAY_MS = 240;
 const AUTOCOMPLETE_LIMIT = 6;
 
-const ERROR_MESSAGES = {
-  emptySearch: "Please enter a username",
-  userNotFound: "User not found",
-  rateLimit: "Rate limit reached. Please try again later.",
-  network: "Network error. Check your connection and try again.",
-  generic: "Something went wrong. Please try again.",
-};
-
-const getErrorMessage = (errorObj) => {
-  if (errorObj?.status === 404) {
-    return ERROR_MESSAGES.userNotFound;
-  }
-
-  if (errorObj?.status === 403) {
-    return ERROR_MESSAGES.rateLimit;
-  }
-
-  if (errorObj?.name === "TypeError") {
-    return ERROR_MESSAGES.network;
-  }
-
-  return ERROR_MESSAGES.generic;
-};
-
 const getGithubUserInformation = async (userName, signal) => {
-  const token = import.meta.env.VITE_GITHUB_TOKEN?.trim();
-  const headers = {
-    Accept: "application/vnd.github+json",
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`https://api.github.com/users/${encodeURIComponent(userName)}`, {
-    headers,
-    signal,
-  });
-
-  if (!response.ok) {
-    const error = new Error("GitHub request failed");
-    error.status = response.status;
-    throw error;
-  }
-
-  return await response.json();
+  return githubFetchJson(`https://api.github.com/users/${encodeURIComponent(userName)}`, signal);
 };
 
 const getUserSuggestions = async (query, signal) => {
-  const token = import.meta.env.VITE_GITHUB_TOKEN?.trim();
-  const headers = {
-    Accept: "application/vnd.github+json",
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const response = await fetch(
+  const json = await githubFetchJson(
     `https://api.github.com/search/users?q=${encodeURIComponent(query)}+in:login&type=user&per_page=${AUTOCOMPLETE_LIMIT}`,
-    {
-      headers,
-      signal,
-    }
+    signal
   );
-
-  if (!response.ok) {
-    const error = new Error("GitHub suggestions request failed");
-    error.status = response.status;
-    throw error;
-  }
-
-  const json = await response.json();
 
   if (!Array.isArray(json?.items)) {
     return [];
@@ -97,29 +34,11 @@ const getUserSuggestions = async (query, signal) => {
 };
 
 const getRecentRepos = async (userName, signal) => {
-  const token = import.meta.env.VITE_GITHUB_TOKEN?.trim();
-  const headers = {
-    Accept: "application/vnd.github+json",
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   try {
-    const response = await fetch(
+    const repos = await githubFetchJson(
       `https://api.github.com/users/${encodeURIComponent(userName)}/repos?sort=pushed&per_page=12&type=owner`,
-      {
-        headers,
-        signal,
-      }
+      signal
     );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const repos = await response.json();
 
     return repos
       .filter((repo) => !repo.fork)
@@ -197,6 +116,8 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
   const shakeTimeoutRef = useRef(null);
   const suggestionDebounceRef = useRef(null);
   const hideSuggestionsTimeoutRef = useRef(null);
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
 
   const triggerShake = useCallback(() => {
     if (shakeTimeoutRef.current) {
@@ -304,79 +225,82 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
     [search, searchUser]
   );
 
-  const handleChange = useCallback((event) => {
-    const nextValue = event.target.value;
-    const normalizedQuery = nextValue.trim().toLowerCase();
+  const handleChange = useCallback(
+    (event) => {
+      const nextValue = event.target.value;
+      const normalizedQuery = nextValue.trim().toLowerCase();
 
-    setSearch(nextValue);
+      setSearch(nextValue);
 
-    if (hideSuggestionsTimeoutRef.current) {
-      clearTimeout(hideSuggestionsTimeoutRef.current);
-    }
+      if (hideSuggestionsTimeoutRef.current) {
+        clearTimeout(hideSuggestionsTimeoutRef.current);
+      }
 
-    setActiveSuggestionIndex(-1);
+      setActiveSuggestionIndex(-1);
 
-    if (suggestionDebounceRef.current) {
-      clearTimeout(suggestionDebounceRef.current);
-    }
+      if (suggestionDebounceRef.current) {
+        clearTimeout(suggestionDebounceRef.current);
+      }
 
-    if (areSuggestionsDisabled) {
-      activeSuggestionsController.current?.abort();
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSuggesting(false);
-      return;
-    }
+      if (areSuggestionsDisabled) {
+        activeSuggestionsController.current?.abort();
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setIsSuggesting(false);
+        return;
+      }
 
-    if (nextValue.trim().length < AUTOCOMPLETE_MIN_CHARS) {
-      activeSuggestionsController.current?.abort();
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSuggesting(false);
-      return;
-    }
+      if (nextValue.trim().length < AUTOCOMPLETE_MIN_CHARS) {
+        activeSuggestionsController.current?.abort();
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setIsSuggesting(false);
+        return;
+      }
 
-    const cachedSuggestions = suggestionsCache.current.get(normalizedQuery);
+      const cachedSuggestions = suggestionsCache.current.get(normalizedQuery);
 
-    if (cachedSuggestions) {
-      setSuggestions(cachedSuggestions);
-      setShowSuggestions(true);
-      setIsSuggesting(false);
-      return;
-    }
-
-    suggestionDebounceRef.current = setTimeout(async () => {
-      activeSuggestionsController.current?.abort();
-
-      const controller = new AbortController();
-      activeSuggestionsController.current = controller;
-
-      setIsSuggesting(true);
-
-      try {
-        const fetchedSuggestions = await getUserSuggestions(nextValue.trim(), controller.signal);
-
-        suggestionsCache.current.set(normalizedQuery, fetchedSuggestions);
-        setSuggestions(fetchedSuggestions);
+      if (cachedSuggestions) {
+        setSuggestions(cachedSuggestions);
         setShowSuggestions(true);
-      } catch (errorObj) {
-        if (errorObj?.name !== "AbortError") {
-          if (errorObj?.status === 403) {
-            setAreSuggestionsDisabled(true);
+        setIsSuggesting(false);
+        return;
+      }
+
+      suggestionDebounceRef.current = setTimeout(async () => {
+        activeSuggestionsController.current?.abort();
+
+        const controller = new AbortController();
+        activeSuggestionsController.current = controller;
+
+        setIsSuggesting(true);
+
+        try {
+          const fetchedSuggestions = await getUserSuggestions(nextValue.trim(), controller.signal);
+
+          suggestionsCache.current.set(normalizedQuery, fetchedSuggestions);
+          setSuggestions(fetchedSuggestions);
+          setShowSuggestions(true);
+        } catch (errorObj) {
+          if (errorObj?.name !== "AbortError") {
+            if (errorObj?.status === 403) {
+              setAreSuggestionsDisabled(true);
+            }
+
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        } finally {
+          if (activeSuggestionsController.current === controller) {
+            activeSuggestionsController.current = null;
           }
 
-          setSuggestions([]);
-          setShowSuggestions(false);
+          setIsSuggesting(false);
         }
-      } finally {
-        if (activeSuggestionsController.current === controller) {
-          activeSuggestionsController.current = null;
-        }
-
-        setIsSuggesting(false);
-      }
-    }, AUTOCOMPLETE_DELAY_MS);
-  }, [areSuggestionsDisabled]);
+      }, AUTOCOMPLETE_DELAY_MS);
+    },
+    [areSuggestionsDisabled]
+  );
 
   const handleSuggestionSelect = useCallback(
     (suggestion) => {
@@ -451,17 +375,20 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
   }, []);
 
   useEffect(() => {
-    searchUser(DEFAULT_USER);
-  }, [searchUser]);
+    let isCancelled = false;
 
-  useEffect(() => {
-    onStatusChange?.(createHeaderStatus({ showCache: isCachedResult, warningText: error }));
-  }, [error, isCachedResult, onStatusChange]);
+    const cacheKey = DEFAULT_USER.toLowerCase();
+    const cachedResult = getCachedUser(userCache.current, cacheKey);
 
-  useEffect(() => {
+    if (!cachedResult) {
+      searchUser(DEFAULT_USER);
+    } else if (!isCancelled) {
+      setData(cachedResult);
+      setIsCachedResult(true);
+    }
+
     return () => {
-      activeController.current?.abort();
-      activeSuggestionsController.current?.abort();
+      isCancelled = true;
 
       if (shakeTimeoutRef.current) {
         clearTimeout(shakeTimeoutRef.current);
@@ -475,7 +402,15 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
         clearTimeout(hideSuggestionsTimeoutRef.current);
       }
     };
+    // searchUser intentionally not in deps — only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    onStatusChangeRef.current?.(
+      createHeaderStatus({ showCache: isCachedResult, warningText: error })
+    );
+  }, [error, isCachedResult]);
 
   return {
     activeSuggestionIndex,
