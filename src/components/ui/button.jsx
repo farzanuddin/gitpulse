@@ -1,7 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
-
-import * as React from "react";
+import PropTypes from "prop-types";
 
 import { cn } from "@/lib/utils";
 
@@ -43,5 +43,12 @@ function Button({ className, variant, size, asChild = false, ...props }) {
     />
   );
 }
+
+Button.propTypes = {
+  className: PropTypes.string,
+  variant: PropTypes.oneOf(["default", "noShadow", "neutral", "reverse"]),
+  size: PropTypes.oneOf(["default", "sm", "lg", "icon"]),
+  asChild: PropTypes.bool,
+};
 
 export { Button, buttonVariants };

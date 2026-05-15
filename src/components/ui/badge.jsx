@@ -1,6 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import { cva } from "class-variance-authority";
-
-import * as React from "react";
+import PropTypes from "prop-types";
 
 import { cn } from "@/lib/utils";
 
@@ -24,5 +24,10 @@ function Badge({ className, variant, ...props }) {
     <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
   );
 }
+
+Badge.propTypes = {
+  className: PropTypes.string,
+  variant: PropTypes.oneOf(["default", "neutral"]),
+};
 
 export { Badge, badgeVariants };

@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import { Badge } from "./ui/badge";
 import { headerStatusShape } from "../utils/headerStatus";
 
