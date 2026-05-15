@@ -1,0 +1,117 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "DM Sans", sans-serif;
+  --font-heading: "DM Sans", sans-serif;
+}
+
+:root {
+  --border-radius: 5px;
+  --box-shadow-x: 4px;
+  --box-shadow-y: 4px;
+  --reverse-box-shadow-x: -4px;
+  --reverse-box-shadow-y: -4px;
+
+  --heading-font-weight: 700;
+  --base-font-weight: 500;
+
+  --background: oklch(95% 0.03 255);
+  --secondary-background: oklch(100% 0 0);
+  --foreground: oklch(0% 0 0);
+  --main-foreground: oklch(0% 0 0);
+
+  --main: oklch(78% 0.15 255);
+  --border: oklch(0% 0 0);
+  --ring: oklch(0% 0 0);
+  --overlay: oklch(0% 0 0 / 0.8);
+
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+
+  --chart-1: oklch(67.47% 0.1726 259.49);
+  --chart-2: oklch(67.28% 0.2147 24.22);
+  --chart-3: oklch(86.03% 0.176 92.36);
+  --chart-4: oklch(79.76% 0.2044 153.08);
+  --chart-5: oklch(66.34% 0.1806 277.2);
+  --chart-active-dot: #000;
+}
+
+@theme inline {
+  --color-main: var(--main);
+  --color-background: var(--background);
+  --color-secondary-background: var(--secondary-background);
+  --color-foreground: var(--foreground);
+  --color-main-foreground: var(--main-foreground);
+  --color-border: var(--border);
+  --color-overlay: var(--overlay);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --spacing-boxShadowX: var(--box-shadow-x);
+  --spacing-boxShadowY: var(--box-shadow-y);
+  --spacing-reverseBoxShadowX: var(--reverse-box-shadow-x);
+  --spacing-reverseBoxShadowY: var(--reverse-box-shadow-y);
+
+  --radius-base: var(--border-radius);
+
+  --shadow-shadow: var(--shadow);
+
+  --font-weight-base: var(--base-font-weight);
+  --font-weight-heading: var(--heading-font-weight);
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply h-full;
+  }
+
+  body {
+    @apply text-foreground font-base overflow-hidden;
+    background-color: var(--background);
+    background-image:
+      linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  #root {
+    @apply h-full;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
+  }
+}
