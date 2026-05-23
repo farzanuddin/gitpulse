@@ -30,6 +30,11 @@ const MONTHS_SHORT = [
 
 export const formatDate = (dateString, format) => {
   const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
   const day = String(date.getUTCDate()).padStart(2, "0");
   const monthIndex = date.getUTCMonth();
   const year = date.getUTCFullYear();

@@ -1,3 +1,10 @@
+import PropTypes from "prop-types";
+
+const iconPropTypes = {
+  className: PropTypes.string,
+  "aria-hidden": PropTypes.bool,
+};
+
 export const SearchIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -16,6 +23,8 @@ export const SearchIcon = (props) => (
   </svg>
 );
 
+SearchIcon.propTypes = iconPropTypes;
+
 export const LoaderIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -32,6 +41,8 @@ export const LoaderIcon = (props) => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
+
+LoaderIcon.propTypes = iconPropTypes;
 
 export const MapPinIcon = (props) => (
   <svg
@@ -50,6 +61,8 @@ export const MapPinIcon = (props) => (
     <circle cx="12" cy="10" r="3" />
   </svg>
 );
+
+MapPinIcon.propTypes = iconPropTypes;
 
 export const BuildingIcon = (props) => (
   <svg
@@ -70,6 +83,8 @@ export const BuildingIcon = (props) => (
   </svg>
 );
 
+BuildingIcon.propTypes = iconPropTypes;
+
 export const GlobeIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -88,3 +103,5 @@ export const GlobeIcon = (props) => (
     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
   </svg>
 );
+
+GlobeIcon.propTypes = iconPropTypes;

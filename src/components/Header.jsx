@@ -1,5 +1,5 @@
 import { Badge } from "./ui/badge";
-import { headerStatusShape } from "../utils/headerStatus";
+import { headerStatusShape } from "../lib/headerStatus";
 
 export const Header = ({ status }) => {
   const showCache = status?.showCache;

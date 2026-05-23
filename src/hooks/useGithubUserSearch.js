@@ -1,36 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createHeaderStatus } from "../utils/headerStatus";
-import { pickDisplayUserFields } from "../utils/githubUser";
+import { createHeaderStatus } from "../lib/headerStatus";
+import { pickDisplayUserFields } from "../lib/githubUser";
 import { githubFetchJson, getErrorMessage, ERROR_MESSAGES } from "../lib/githubApi";
+import { getCached, setCached } from "../lib/cache";
+import { useAutocomplete } from "./useAutocomplete";
 
 const DEFAULT_USER = "farzanuddin";
-const CACHE_MAX_ENTRIES = 30;
-const CACHE_TTL_MS = 15 * 60 * 1000;
 const RECENT_REPOS_LIMIT = 3;
-const AUTOCOMPLETE_MIN_CHARS = 2;
-const AUTOCOMPLETE_DELAY_MS = 240;
-const AUTOCOMPLETE_LIMIT = 6;
+const SUGGESTIONS_RETRY_MS = 5 * 60 * 1000;
 
 const getGithubUserInformation = async (userName, signal) => {
   return githubFetchJson(`https://api.github.com/users/${encodeURIComponent(userName)}`, signal);
-};
-
-const getUserSuggestions = async (query, signal) => {
-  const json = await githubFetchJson(
-    `https://api.github.com/search/users?q=${encodeURIComponent(query)}+in:login&type=user&per_page=${AUTOCOMPLETE_LIMIT}`,
-    signal
-  );
-
-  if (!Array.isArray(json?.items)) {
-    return [];
-  }
-
-  return json.items.map((user) => ({
-    id: user.id,
-    login: user.login,
-    avatar_url: user.avatar_url,
-    html_url: user.html_url,
-  }));
 };
 
 const getRecentRepos = async (userName, signal) => {
@@ -59,41 +39,6 @@ const getRecentRepos = async (userName, signal) => {
   }
 };
 
-const getCachedUser = (cacheMap, key) => {
-  const cachedEntry = cacheMap.get(key);
-
-  if (!cachedEntry) {
-    return null;
-  }
-
-  if (Date.now() - cachedEntry.cachedAt > CACHE_TTL_MS) {
-    cacheMap.delete(key);
-    return null;
-  }
-
-  // refresh LRU position
-  cacheMap.delete(key);
-  cacheMap.set(key, cachedEntry);
-
-  return cachedEntry.data;
-};
-
-const setCachedUser = (cacheMap, key, data) => {
-  if (cacheMap.has(key)) {
-    cacheMap.delete(key);
-  }
-
-  cacheMap.set(key, {
-    data,
-    cachedAt: Date.now(),
-  });
-
-  if (cacheMap.size > CACHE_MAX_ENTRIES) {
-    const oldestKey = cacheMap.keys().next().value;
-    cacheMap.delete(oldestKey);
-  }
-};
-
 export const useGithubUserSearch = ({ onStatusChange }) => {
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -101,23 +46,26 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCachedResult, setIsCachedResult] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSuggesting, setIsSuggesting] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [areSuggestionsDisabled, setAreSuggestionsDisabled] = useState(false);
 
   const searchInputRef = useRef(null);
   const userCache = useRef(new Map());
-  const suggestionsCache = useRef(new Map());
-  const activeRequestId = useRef(0);
   const activeController = useRef(null);
-  const activeSuggestionsController = useRef(null);
   const shakeTimeoutRef = useRef(null);
-  const suggestionDebounceRef = useRef(null);
-  const hideSuggestionsTimeoutRef = useRef(null);
+  const suggestionsRetryTimeoutRef = useRef(null);
   const onStatusChangeRef = useRef(onStatusChange);
   onStatusChangeRef.current = onStatusChange;
+
+  const autocomplete = useAutocomplete();
+
+  const disableSuggestions = useCallback(() => {
+    setAreSuggestionsDisabled(true);
+    autocomplete.clearSuggestions();
+
+    suggestionsRetryTimeoutRef.current = setTimeout(() => {
+      setAreSuggestionsDisabled(false);
+    }, SUGGESTIONS_RETRY_MS);
+  }, [autocomplete]);
 
   const triggerShake = useCallback(() => {
     if (shakeTimeoutRef.current) {
@@ -141,14 +89,9 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
         return;
       }
 
-      if (hideSuggestionsTimeoutRef.current) {
-        clearTimeout(hideSuggestionsTimeoutRef.current);
-      }
+      autocomplete.clearSuggestions();
 
-      setShowSuggestions(false);
-      setActiveSuggestionIndex(-1);
-
-      const cachedResult = getCachedUser(userCache.current, cacheKey);
+      const cachedResult = getCached(userCache.current, cacheKey);
 
       if (cachedResult) {
         setError("");
@@ -161,9 +104,6 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
 
       const controller = new AbortController();
       activeController.current = controller;
-
-      const requestId = activeRequestId.current + 1;
-      activeRequestId.current = requestId;
 
       setLoading(true);
       setError("");
@@ -179,11 +119,7 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
           recent_repos: recentRepos,
         });
 
-        if (requestId !== activeRequestId.current) {
-          return;
-        }
-
-        setCachedUser(userCache.current, cacheKey, displayUser);
+        setCached(userCache.current, cacheKey, displayUser);
         setIsCachedResult(false);
         setData(displayUser);
       } catch (errorObj) {
@@ -191,30 +127,21 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
           return;
         }
 
-        if (requestId !== activeRequestId.current) {
-          return;
-        }
-
         if (errorObj?.status === 403) {
-          setAreSuggestionsDisabled(true);
-          setSuggestions([]);
-          setShowSuggestions(false);
+          disableSuggestions();
         }
 
         setIsCachedResult(false);
         setError(getErrorMessage(errorObj));
         triggerShake();
       } finally {
-        if (requestId === activeRequestId.current) {
-          setLoading(false);
-        }
-
         if (activeController.current === controller) {
+          setLoading(false);
           activeController.current = null;
         }
       }
     },
-    [triggerShake]
+    [triggerShake, autocomplete, disableSuggestions]
   );
 
   const handleSubmit = useCallback(
@@ -228,141 +155,45 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
   const handleChange = useCallback(
     (event) => {
       const nextValue = event.target.value;
-      const normalizedQuery = nextValue.trim().toLowerCase();
-
       setSearch(nextValue);
 
-      if (hideSuggestionsTimeoutRef.current) {
-        clearTimeout(hideSuggestionsTimeoutRef.current);
-      }
-
-      setActiveSuggestionIndex(-1);
-
-      if (suggestionDebounceRef.current) {
-        clearTimeout(suggestionDebounceRef.current);
-      }
-
       if (areSuggestionsDisabled) {
-        activeSuggestionsController.current?.abort();
-        setSuggestions([]);
-        setShowSuggestions(false);
-        setIsSuggesting(false);
+        autocomplete.clearSuggestions();
         return;
       }
 
-      if (nextValue.trim().length < AUTOCOMPLETE_MIN_CHARS) {
-        activeSuggestionsController.current?.abort();
-        setSuggestions([]);
-        setShowSuggestions(false);
-        setIsSuggesting(false);
-        return;
-      }
-
-      const cachedSuggestions = suggestionsCache.current.get(normalizedQuery);
-
-      if (cachedSuggestions) {
-        setSuggestions(cachedSuggestions);
-        setShowSuggestions(true);
-        setIsSuggesting(false);
-        return;
-      }
-
-      suggestionDebounceRef.current = setTimeout(async () => {
-        activeSuggestionsController.current?.abort();
-
-        const controller = new AbortController();
-        activeSuggestionsController.current = controller;
-
-        setIsSuggesting(true);
-
-        try {
-          const fetchedSuggestions = await getUserSuggestions(nextValue.trim(), controller.signal);
-
-          suggestionsCache.current.set(normalizedQuery, fetchedSuggestions);
-          setSuggestions(fetchedSuggestions);
-          setShowSuggestions(true);
-        } catch (errorObj) {
-          if (errorObj?.name !== "AbortError") {
-            if (errorObj?.status === 403) {
-              setAreSuggestionsDisabled(true);
-            }
-
-            setSuggestions([]);
-            setShowSuggestions(false);
-          }
-        } finally {
-          if (activeSuggestionsController.current === controller) {
-            activeSuggestionsController.current = null;
-          }
-
-          setIsSuggesting(false);
-        }
-      }, AUTOCOMPLETE_DELAY_MS);
+      autocomplete.handleInput(nextValue);
     },
-    [areSuggestionsDisabled]
+    [areSuggestionsDisabled, autocomplete]
   );
 
   const handleSuggestionSelect = useCallback(
     (suggestion) => {
       setSearch(suggestion.login);
-      setShowSuggestions(false);
-      setActiveSuggestionIndex(-1);
+      autocomplete.clearSuggestions();
       searchUser(suggestion.login);
     },
-    [searchUser]
+    [searchUser, autocomplete]
   );
 
   const handleInputKeyDown = useCallback(
     (event) => {
-      if (!showSuggestions || !suggestions.length) {
-        return;
-      }
+      const selectedSuggestion = autocomplete.handleInputKeyDown(event);
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setActiveSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestions.length);
-        return;
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setActiveSuggestionIndex((prevIndex) =>
-          prevIndex <= 0 ? suggestions.length - 1 : prevIndex - 1
-        );
-        return;
-      }
-
-      if (event.key === "Enter" && activeSuggestionIndex >= 0) {
-        event.preventDefault();
-        handleSuggestionSelect(suggestions[activeSuggestionIndex]);
-        return;
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setShowSuggestions(false);
-        setActiveSuggestionIndex(-1);
+      if (selectedSuggestion) {
+        handleSuggestionSelect(selectedSuggestion);
       }
     },
-    [activeSuggestionIndex, handleSuggestionSelect, showSuggestions, suggestions]
+    [autocomplete, handleSuggestionSelect]
   );
 
   const handleInputFocus = useCallback(() => {
-    if (hideSuggestionsTimeoutRef.current) {
-      clearTimeout(hideSuggestionsTimeoutRef.current);
-    }
-
-    if (suggestions.length) {
-      setShowSuggestions(true);
-    }
-  }, [suggestions.length]);
+    autocomplete.handleInputFocus();
+  }, [autocomplete]);
 
   const handleInputBlur = useCallback(() => {
-    hideSuggestionsTimeoutRef.current = setTimeout(() => {
-      setShowSuggestions(false);
-      setActiveSuggestionIndex(-1);
-    }, 120);
-  }, []);
+    autocomplete.handleInputBlur();
+  }, [autocomplete]);
 
   const handleSearchBarClick = useCallback((event) => {
     const clickedButton = event.target.closest("button");
@@ -378,7 +209,7 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
     let isCancelled = false;
 
     const cacheKey = DEFAULT_USER.toLowerCase();
-    const cachedResult = getCachedUser(userCache.current, cacheKey);
+    const cachedResult = getCached(userCache.current, cacheKey);
 
     if (!cachedResult) {
       searchUser(DEFAULT_USER);
@@ -394,15 +225,10 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
         clearTimeout(shakeTimeoutRef.current);
       }
 
-      if (suggestionDebounceRef.current) {
-        clearTimeout(suggestionDebounceRef.current);
-      }
-
-      if (hideSuggestionsTimeoutRef.current) {
-        clearTimeout(hideSuggestionsTimeoutRef.current);
+      if (suggestionsRetryTimeoutRef.current) {
+        clearTimeout(suggestionsRetryTimeoutRef.current);
       }
     };
-    // searchUser intentionally not in deps — only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -413,7 +239,7 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
   }, [error, isCachedResult]);
 
   return {
-    activeSuggestionIndex,
+    activeSuggestionIndex: autocomplete.activeSuggestionIndex,
     data,
     error,
     handleChange,
@@ -423,12 +249,12 @@ export const useGithubUserSearch = ({ onStatusChange }) => {
     handleSearchBarClick,
     handleSuggestionSelect,
     handleSubmit,
-    isSuggesting,
+    isSuggesting: autocomplete.isSuggesting,
     loading,
     searchInputRef,
     search,
     shake,
-    showSuggestions,
-    suggestions,
+    showSuggestions: autocomplete.showSuggestions,
+    suggestions: autocomplete.suggestions,
   };
 };

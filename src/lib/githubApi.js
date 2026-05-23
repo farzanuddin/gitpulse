@@ -1,11 +1,12 @@
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim();
+
 const getHeaders = () => {
-  const token = import.meta.env.VITE_GITHUB_TOKEN?.trim();
   const headers = {
     Accept: "application/vnd.github+json",
   };
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
   }
 
   return headers;
@@ -26,9 +27,7 @@ export const githubFetch = async (url, signal) => {
   });
 
   if (!response.ok) {
-    const error = new GitHubApiError("GitHub request failed", response.status);
-    error.status = response.status;
-    throw error;
+    throw new GitHubApiError("GitHub request failed", response.status);
   }
 
   return response;

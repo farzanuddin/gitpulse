@@ -33,8 +33,6 @@ specifically its fast cold starts and instant HMR (Hot Module Replacement) durin
 | [Vite](https://vitejs.dev/)                         | ^5.4.21 | Build tool & dev server     |
 | [Tailwind CSS v4](https://tailwindcss.com/)         | ^4.3.0  | Utility-first CSS framework |
 | [PropTypes](https://github.com/facebook/prop-types) | ^15.8.1 | Runtime prop type checking  |
-| [ESLint](https://eslint.org/)                       | ^8.45.0 | Code linting                |
-| [Prettier](https://prettier.io/)                    | ^3.8.1  | Code formatter              |
 
 ## Autocomplete Limitation
 

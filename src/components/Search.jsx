@@ -7,8 +7,7 @@ import { FooterCredit } from "./FooterCredit";
 import { SearchIcon, LoaderIcon } from "./ui/icons";
 import { useGithubUserSearch } from "../hooks/useGithubUserSearch";
 
-const loadDisplay = () => import("./Display");
-const Display = lazy(() => loadDisplay().then((module) => ({ default: module.Display })));
+const Display = lazy(() => import("./Display").then((module) => ({ default: module.Display })));
 
 export const Search = ({ onStatusChange }) => {
   const {
@@ -38,7 +37,6 @@ export const Search = ({ onStatusChange }) => {
           autoComplete="off"
           onSubmit={handleSubmit}
           onClick={handleSearchBarClick}
-          onFocus={loadDisplay}
           className="relative rounded-base border-2 border-border bg-secondary-background shadow-shadow"
         >
           <div className="flex items-center gap-2 px-3 py-2">

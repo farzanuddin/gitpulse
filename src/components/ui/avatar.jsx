@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { cn } from "@/lib/utils";
 
 function Avatar({ className, ...props }) {
+  Avatar.displayName = "Avatar";
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"

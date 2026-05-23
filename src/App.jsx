@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Header } from "./components/Header";
 import { Search } from "./components/Search";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { createHeaderStatus } from "./utils/headerStatus";
+import { createHeaderStatus } from "./lib/headerStatus";
 
 function App() {
   const [headerStatus, setHeaderStatus] = useState(() => createHeaderStatus());

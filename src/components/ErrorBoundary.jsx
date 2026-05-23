@@ -1,5 +1,6 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
+import { Button } from "./ui/button";
 
 export class ErrorBoundary extends Component {
   constructor(props) {
@@ -20,16 +21,15 @@ export class ErrorBoundary extends Component {
             <p className="mt-2 text-sm font-base text-foreground/60">
               {this.state.error?.message || "An unexpected error occurred."}
             </p>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 this.setState({ hasError: false, error: null });
                 window.location.reload();
               }}
-              className="mt-4 rounded-base border-2 border-border bg-main px-4 py-2 text-sm font-base text-main-foreground shadow-shadow transition-all hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none"
             >
               Reload page
-            </button>
+            </Button>
           </div>
         </div>
       );

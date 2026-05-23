@@ -10,7 +10,7 @@ export const FooterCredit = () => {
         <a
           href={GITHUB_PAGE_URL}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="text-foreground/50 underline underline-offset-2 hover:text-main transition-colors"
         >
           Farzan Uddin

@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { MapPinIcon, BuildingIcon, GlobeIcon } from "./ui/icons";
-import { githubRepoShape, githubUserShape, nullableStringProp } from "../utils/githubUser";
+import { githubRepoShape, githubUserShape, nullableStringProp } from "../lib/githubUser";
 import { formatDate } from "../lib/formatDate";
 
 const EMPTY_BIO_TEXT = "This Profile has no bio.";
@@ -95,7 +95,7 @@ export const Display = ({ data }) => {
   return (
     <section className="mt-4 rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow sm:p-8">
       <div className="grid grid-cols-[auto_1fr] gap-4 sm:gap-6">
-        <Avatar className="size-20 sm:size-24 row-span-1">
+        <Avatar className="size-20 sm:size-24">
           <AvatarImage src={data.avatar_url} alt="User Profile" />
         </Avatar>
         <div className="flex flex-col justify-center">
